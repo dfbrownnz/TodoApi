@@ -99,6 +99,7 @@ todoItems.MapPost("/", async (JsonElement todoJson, TodoService todoService) =>
 RouteGroupBuilder gcs = app.MapGroup("/gcs");
 
 // gcloud auth login
+// docker build -t todo-api .
 
 // In PowerShell: $env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\your\key.json"
 // $env:GOOGLE_APPLICATION_CREDENTIALS="D:/dev/code/service_account/dev-task-controller-9699669388c2.json"
