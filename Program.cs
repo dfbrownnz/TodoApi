@@ -61,7 +61,7 @@ if (app.Environment.IsDevelopment())
 }
 
 // Add this near your other endpoint mappings
-app.MapGet("/", () => Results.Redirect("/swagger"));
+app.MapGet("/", () => Results.Redirect("/swagger/index.html"));
 app.MapFallback(() => Results.NotFound(new { 
     message = "Endpoint not found. Please refer to the API documentation at /swagger." 
 }));
