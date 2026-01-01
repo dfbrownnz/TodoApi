@@ -60,6 +60,12 @@ if (app.Environment.IsDevelopment())
     });
 }
 
+// Add this near your other endpoint mappings
+app.MapGet("/", () => Results.Redirect("/swagger"));
+app.MapFallback(() => Results.NotFound(new { 
+    message = "Endpoint not found. Please refer to the API documentation at /swagger." 
+}));
+
 RouteGroupBuilder todoItems = app.MapGroup("/todoitems");
 
 // todoItems.MapGet("/", async (TodoService todoService) =>
