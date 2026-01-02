@@ -9,6 +9,7 @@ using Google.Cloud.Storage.V1;
 // https://medium.com/@asadikhan/uploading-csv-files-to-google-cloud-storage-using-c-net-9eaa951eabf2
 //  Create Service Account Key
 
+using TodoProject.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,8 +63,9 @@ if (app.Environment.IsDevelopment())
 
 // Add this near your other endpoint mappings
 app.MapGet("/", () => Results.Redirect("/swagger/index.html"));
-app.MapFallback(() => Results.NotFound(new { 
-    message = "Endpoint not found. Please refer to the API documentation at /swagger." 
+app.MapFallback(() => Results.NotFound(new
+{
+    message = "Endpoint not found. Please refer to the API documentation at /swagger."
 }));
 
 RouteGroupBuilder todoItems = app.MapGroup("/todoitems");
@@ -109,7 +111,7 @@ RouteGroupBuilder gcs = app.MapGroup("/gcs");
 
 // In PowerShell: $env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\your\key.json"
 // $env:GOOGLE_APPLICATION_CREDENTIALS="D:/dev/code/service_account/dev-task-controller-9699669388c2.json"
-gcs.MapGet("/", async (TodoServiceGcs gcsService , string? bucketName= "cary-tasks", string? ProjectId= "todos.2.json") =>
+gcs.MapGet("/", async (TodoServiceGcs gcsService, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
 
     Console.WriteLine("|MapGet|gcs ", bucketName, ProjectId);
@@ -135,13 +137,19 @@ gcs.MapGet("/", async (TodoServiceGcs gcsService , string? bucketName= "cary-tas
 
 // In PowerShell: $env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\your\key.json"
 // $env:GOOGLE_APPLICATION_CREDENTIALS="D:/dev/code/service_account/dev-task-controller-9699669388c2.json"
-gcs.MapGet("/file-contents", async (TodoServiceGcs gcsService , string? bucketName= "cary-tasks", string? ProjectId= "todos.2.json") =>
+gcs.MapGet("/file-contents", async (TodoServiceGcs gcsService, HttpContext context, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json" ) =>
 {
     Console.WriteLine("|MapGet|gcs|file-contents|", bucketName, ProjectId);
     try
     {
-        var content = await gcsService.GetTasksJsonContentAsync(bucketName, ProjectId);
-        return Results.Ok(content);
+        var gcsResponse = await gcsService.GetTasksJsonContentAsync(bucketName, ProjectId);
+        
+        // 1. Add the ETag to the response headers
+        if (!string.IsNullOrEmpty(gcsResponse.ETag))
+        {
+            context.Response.Headers.ETag = gcsResponse.ETag;
+        }
+        return Results.Content(gcsResponse.Content, "application/json");
 
     }
     catch (Exception ex)
@@ -153,7 +161,7 @@ gcs.MapGet("/file-contents", async (TodoServiceGcs gcsService , string? bucketNa
 
 // In PowerShell: $env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\your\key.json"
 // $env:GOOGLE_APPLICATION_CREDENTIALS="D:/dev/code/service_account/dev-task-controller-9699669388c2.json"
-gcs.MapPut("/file-contents", async (Todo dataObject, TodoServiceGcs gcsService , string? bucketName= "cary-tasks", string? ProjectId= "todos.2.json") =>
+gcs.MapPut("/file-contents", async (Todo dataObject, TodoServiceGcs gcsService, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
     Console.WriteLine("|MapPut|gcs|file-contents|", bucketName, ProjectId);
     try

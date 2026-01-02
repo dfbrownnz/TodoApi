@@ -6,6 +6,7 @@ using Google.Apis.Auth.OAuth2;
 using Microsoft.Extensions.Options;
 using System.Text;
 using System.Text.Json;
+using TodoProject.Models;
 public class TodoServiceGcs
 {
     private readonly StorageClient _storageClient;
@@ -74,18 +75,28 @@ public class TodoServiceGcs
     /// Downloads and returns the raw string content of tasks.json from the GCS bucket.
     /// </summary>
     /// <returns>A string containing the JSON data.</returns>
-    public async Task<object> GetTasksJsonContentAsync(string bucketName, string fileName)
+    public async Task<GcsResponse> GetTasksJsonContentAsync(string bucketName, string fileName)
     {
+
+        // 1. Get object metadata to retrieve the ETag
+        var storageObject = await _storageClient.GetObjectAsync(bucketName, fileName);
+        string etag = storageObject.ETag;
+
         using (var memoryStream = new MemoryStream())
         {
-            // Download the file (e.g., project_list.json) from the cary-tasks bucket
             await _storageClient.DownloadObjectAsync(bucketName, fileName, memoryStream);
-
-            // Move to the beginning of the stream or convert to array
-            var bytes = memoryStream.ToArray();
-
-            // Deserialize the bytes into an object so ASP.NET serializes it as proper JSON
-            return JsonSerializer.Deserialize<object>(bytes)!;
+            memoryStream.Position = 0;
+            using (var reader = new StreamReader(memoryStream))
+            {
+                string content = await reader.ReadToEndAsync();
+                return new GcsResponse { Content = content, ETag = etag };
+            }
+            //     // Download the file (e.g., project_list.json) from the cary-tasks bucket
+            //     await _storageClient.DownloadObjectAsync(bucketName, fileName, memoryStream);
+            //     // Move to the beginning of the stream or convert to array
+            //     var bytes = memoryStream.ToArray();
+            //    // Deserialize the bytes into an object so ASP.NET serializes it as proper JSON
+            //     return JsonSerializer.Deserialize<object>(bytes)!;
         }
     }
 
@@ -118,7 +129,7 @@ public class TodoServiceGcs
     public async Task SaveJsonObjectToGcsAsync(string bucketName, string fileName, Todo newTodo)
     {
         List<Todo> oldTodo = new();
-        
+
         try
         {
             using (var memoryStream = new MemoryStream())
