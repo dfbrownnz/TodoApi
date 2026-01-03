@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using System.Text.Json;
+using TodoProject.Models;
 
 /// <summary>
 /// Service responsible for managing Todo items, including persistence to a JSON file and validation.
@@ -11,7 +12,7 @@ using System.Text.Json;
 public class TodoService(IOptions<TodoSettings> settings)
 {
     private readonly TodoSettings _settings = settings.Value;
-
+  
     public object? ProjectId { get; private set; }
 
     /// <summary>
@@ -20,6 +21,9 @@ public class TodoService(IOptions<TodoSettings> settings)
     /// <returns>A list of <see cref="Todo"/> objects. Returns an empty list if the file does not exist.</returns>
     public async Task<List<Todo>> GetAllTodosAsync(string? projectId = null)
     {
+
+     
+
         if (!File.Exists(_settings.FilePath))
         {
             return new List<Todo>();

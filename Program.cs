@@ -10,6 +10,7 @@ using Google.Cloud.Storage.V1;
 //  Create Service Account Key
 
 using TodoProject.Models;
+// curl -i -H "Origin: http://localhost:4200" "http://localhost:5173/gcs/file-contents?bucketName=cary-tasks&ProjectId=todos.2.json"
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,24 +21,26 @@ builder.Services.AddOpenApiDocument(config =>
     config.Title = "TodoAPI v1";
     config.Version = "v1";
 });
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.WithOrigins("http://localhost:4200")
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .WithExposedHeaders("ETag"); // This is the critical line
     });
 });
 
 builder.Services.Configure<TodoSettings>(builder.Configuration.GetSection("TodoSettings"));
 builder.Services.AddScoped<TodoService>();
-
 // Don't forget to also register the StorageClient if you use it in the constructor
 builder.Services.AddSingleton(StorageClient.Create());
-
 // Register your GCS service here
 builder.Services.AddScoped<TodoServiceGcs>();
+// Example: register your service
+builder.Services.AddScoped<ProjectListService>();
 
 
 // Or more simply, tell the serializer to use strings
@@ -49,17 +52,26 @@ builder.Services.Configure<JsonOptions>(options =>
 var app = builder.Build();
 app.UseCors(); // Must be placed before other middleware
 
-if (app.Environment.IsDevelopment())
+// if (app.Environment.IsDevelopment())
+// {
+//     app.UseOpenApi();
+//     app.UseSwaggerUi(config =>
+//     {
+//         config.DocumentTitle = "TodoAPI";
+//         config.Path = "/swagger";
+//         config.DocumentPath = "/swagger/{documentName}/swagger.json";
+//         config.DocExpansion = "list";
+//     });
+// }
+
+app.UseOpenApi();
+app.UseSwaggerUi(config =>
 {
-    app.UseOpenApi();
-    app.UseSwaggerUi(config =>
-    {
-        config.DocumentTitle = "TodoAPI";
-        config.Path = "/swagger";
-        config.DocumentPath = "/swagger/{documentName}/swagger.json";
-        config.DocExpansion = "list";
-    });
-}
+    config.DocumentTitle = "TodoAPI";
+    config.Path = "/swagger";
+    config.DocumentPath = "/swagger/{documentName}/swagger.json";
+    config.DocExpansion = "list";
+});
 
 // Add this near your other endpoint mappings
 app.MapGet("/", () => Results.Redirect("/swagger/index.html"));
@@ -70,12 +82,6 @@ app.MapFallback(() => Results.NotFound(new
 
 RouteGroupBuilder todoItems = app.MapGroup("/todoitems");
 
-// todoItems.MapGet("/", async (TodoService todoService) =>
-// {
-//     var todos = await todoService.GetAllTodosAsync();
-//     return Results.Ok(todos);
-// });
-
 todoItems.MapGet("/", async (string? projectId, TodoService todoService) =>
 {
     // Pass the optional ID to your service
@@ -85,7 +91,6 @@ todoItems.MapGet("/", async (string? projectId, TodoService todoService) =>
 
 // To make param optional, define the type as optional or provide a default value:
 // todoItems.MapGet("/{id}&{name}", GetTodo);
-
 
 todoItems.MapPost("/", async (JsonElement todoJson, TodoService todoService) =>
 {
@@ -106,24 +111,14 @@ todoItems.MapPost("/", async (JsonElement todoJson, TodoService todoService) =>
 
 RouteGroupBuilder gcs = app.MapGroup("/gcs");
 
-// gcloud auth login
-// docker build -t todo-api .
-
-// In PowerShell: $env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\your\key.json"
-// $env:GOOGLE_APPLICATION_CREDENTIALS="D:/dev/code/service_account/dev-task-controller-9699669388c2.json"
 gcs.MapGet("/", async (TodoServiceGcs gcsService, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
 
     Console.WriteLine("|MapGet|gcs ", bucketName, ProjectId);
     try
     {
-        // var files = await todoService.ListGcsFilesAsync(bucketName);
-        //var gcsService = new TodoServiceGcs();
-        Console.WriteLine("|MapGet|gcs|2| ", bucketName, ProjectId);
+        // Console.WriteLine("|MapGet|gcs|2| ", bucketName, ProjectId);
         var files = await gcsService.ListGcsFilesAsync(bucketName); // cary-tasks/projects
-        //var files = await gcsService.ListFilesInProjectsFolderAsync(); //ListGcsFilesAsync
-        //var files = await gcsService.ListGcsFilesAsync(bucketName); //ListGcsFilesAsync); //
-
         return Results.Ok(files);
     }
     catch (Exception ex)
@@ -135,15 +130,13 @@ gcs.MapGet("/", async (TodoServiceGcs gcsService, string? bucketName = "cary-tas
 .WithName("GetGcsFiles")
 ;
 
-// In PowerShell: $env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\your\key.json"
-// $env:GOOGLE_APPLICATION_CREDENTIALS="D:/dev/code/service_account/dev-task-controller-9699669388c2.json"
-gcs.MapGet("/file-contents", async (TodoServiceGcs gcsService, HttpContext context, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json" ) =>
+gcs.MapGet("/file-contents", async (TodoServiceGcs gcsService, HttpContext context, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
     Console.WriteLine("|MapGet|gcs|file-contents|", bucketName, ProjectId);
     try
     {
         var gcsResponse = await gcsService.GetTasksJsonContentAsync(bucketName, ProjectId);
-        
+
         // 1. Add the ETag to the response headers
         if (!string.IsNullOrEmpty(gcsResponse.ETag))
         {
@@ -159,8 +152,6 @@ gcs.MapGet("/file-contents", async (TodoServiceGcs gcsService, HttpContext conte
     }
 });
 
-// In PowerShell: $env:GOOGLE_APPLICATION_CREDENTIALS="C:\path\to\your\key.json"
-// $env:GOOGLE_APPLICATION_CREDENTIALS="D:/dev/code/service_account/dev-task-controller-9699669388c2.json"
 gcs.MapPut("/file-contents", async (Todo dataObject, TodoServiceGcs gcsService, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
     Console.WriteLine("|MapPut|gcs|file-contents|", bucketName, ProjectId);
@@ -178,17 +169,51 @@ gcs.MapPut("/file-contents", async (Todo dataObject, TodoServiceGcs gcsService, 
 
 });
 
+RouteGroupBuilder projectlist = app.MapGroup("/projectlist");
 
-// SaveJsonObjectToGcsAsync
+projectlist.MapGet("/", async (ProjectListService todoService, HttpContext context, string? projectlistName) =>
+{
+    // Pass the optional ID to your service
+    // var todos = await todoService.GetFileJsonContentAsync( "project_list.json" , projectlistName );
+    // return Results.Ok(todos);
+    try
+    {
+        var plResponse = await todoService.GetFileJsonContentAsync("project_list.json", projectlistName);
+
+        // 1. Add the ETag to the response headers
+        if (!string.IsNullOrEmpty(plResponse.ETag))
+        {
+            context.Response.Headers.ETag = plResponse.ETag;
+        }
+        return Results.Content(plResponse.Content, "application/json");
+
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("|MapGet|gcs|error| ", "project_list.json", projectlistName, ex);
+        return Results.BadRequest(new { error = ex.Message });
+    }
+
+});
+
+
+projectlist.MapPut("/", async (ProjectList dataObject, ProjectListService todoService,  string? Owner = "NoOwner") =>
+{
+    Console.WriteLine("|MapPut|gcs|file-contents|" );
+    try
+    {
+        await todoService.SaveJsonObjectToGcsAsync( dataObject , "project_list.json" , Owner );
+        return Results.Ok();
+
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine("|MapPut|gcs|error| ",  ex);
+        return Results.BadRequest(new { error = ex.Message });
+    }
+
+});
 
 app.Run();
 
 
-public class TodoSettings { public string FilePath { get; set; } = string.Empty; }
-
-public class TaskError
-{
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public string Code { get; set; } = string.Empty;
-}
