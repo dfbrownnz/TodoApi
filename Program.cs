@@ -31,7 +31,8 @@ builder.Services.AddCors(options =>
               .AllowAnyHeader()
               .WithExposedHeaders("ETag") // This is the critical line
             .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
-               .AllowCredentials(); // Optional, but often needed for authenticated Cloud Run calls    
+               .AllowCredentials() // Optional, but often needed for authenticated Cloud Run calls    
+               .SetIsOriginAllowedToAllowWildcardSubdomains();
     });
 });
 
@@ -45,7 +46,8 @@ builder.Services.AddCors(options =>
                   .AllowAnyHeader()
                   .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
                   .AllowAnyMethod()
-                  .AllowCredentials(); // Optional, but often needed for authenticated Cloud Run calls                  
+                  .AllowCredentials() // Optional, but often needed for authenticated Cloud Run calls                  
+                  .SetIsOriginAllowedToAllowWildcardSubdomains();
         });
 });
 
@@ -68,11 +70,11 @@ builder.Services.Configure<JsonOptions>(options =>
 
 builder.Services.AddControllers();
 var app = builder.Build();
+app.UseRouting();
+
 app.UseCors(); // Must be placed before other middleware
 app.UseCors("AllowAngularApp"); // Use the policy name defined above
 
-// 2. Enable the middleware (Must be between UseRouting and UseAuthorization)
-app.UseRouting();
 app.UseAuthorization();
 app.MapControllers();
 // app.Run();
