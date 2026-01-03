@@ -33,6 +33,19 @@ builder.Services.AddCors(options =>
     });
 });
 
+// 1. Define the policy
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngularApp",
+        policy =>
+        {
+            policy.WithOrigins("https://todoui-947367955954.europe-west1.run.app") // Your frontend URL
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
+
+builder.Services.AddControllers();
 builder.Services.Configure<TodoSettings>(builder.Configuration.GetSection("TodoSettings"));
 builder.Services.AddScoped<TodoService>();
 // Don't forget to also register the StorageClient if you use it in the constructor
