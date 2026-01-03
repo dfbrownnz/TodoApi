@@ -29,7 +29,9 @@ builder.Services.AddCors(options =>
         policy.WithOrigins("http://localhost:4200")
               .AllowAnyMethod()
               .AllowAnyHeader()
-              .WithExposedHeaders("ETag"); // This is the critical line
+              .WithExposedHeaders("ETag") // This is the critical line
+            .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
+               .AllowCredentials(); // Optional, but often needed for authenticated Cloud Run calls    
     });
 });
 
@@ -41,11 +43,13 @@ builder.Services.AddCors(options =>
         {
             policy.WithOrigins("https://todoui-947367955954.europe-west1.run.app") // Your frontend URL
                   .AllowAnyHeader()
-                  .AllowAnyMethod();
+                  .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
+                  .AllowAnyMethod()
+                  .AllowCredentials(); // Optional, but often needed for authenticated Cloud Run calls                  
         });
 });
 
-builder.Services.AddControllers();
+
 builder.Services.Configure<TodoSettings>(builder.Configuration.GetSection("TodoSettings"));
 builder.Services.AddScoped<TodoService>();
 // Don't forget to also register the StorageClient if you use it in the constructor
@@ -62,14 +66,13 @@ builder.Services.Configure<JsonOptions>(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 
+builder.Services.AddControllers();
 var app = builder.Build();
 app.UseCors(); // Must be placed before other middleware
+app.UseCors("AllowAngularApp"); // Use the policy name defined above
 
 // 2. Enable the middleware (Must be between UseRouting and UseAuthorization)
 app.UseRouting();
-
-app.UseCors("AllowAngularApp"); // Use the policy name defined above
-
 app.UseAuthorization();
 app.MapControllers();
 // app.Run();
