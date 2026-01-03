@@ -71,13 +71,47 @@ public class TodoServiceGcs
         return fileList;
     }
 
+public async Task<bool> FileExistsAsync(string bucketName, string fileName)
+{
+    try
+    {
+        // GetObjectAsync throws a Google.GoogleApiException if the file is not found
+        await _storageClient.GetObjectAsync(bucketName, fileName);
+        return true;
+    }
+    catch (Google.GoogleApiException e) when (e.Error.Code == 404)
+    {
+        // 404 means the file does not exist
+        return false;
+    }
+}
+
     /// <summary>
     /// Downloads and returns the raw string content of tasks.json from the GCS bucket.
     /// </summary>
     /// <returns>A string containing the JSON data.</returns>
     public async Task<GcsResponse> GetTasksJsonContentAsync(string bucketName, string fileName)
-    {
-
+    { 
+        if(await FileExistsAsync(bucketName, fileName) == false    )
+        {
+            // return new GcsResponse { Content = JsonSerializer.Serialize(new List<Todo>()), ETag = "0" };
+            var defaultTodo = new List<Todo>
+            {
+                new Todo
+                {
+                    ProjectId = fileName,
+                    Id = 1,
+                    Description = $"Cant find the file for file name {fileName} in the bucket {bucketName}. Assign a Project id before coming here",
+                    Name = "Initial Task",
+                    Group = "Configuration",
+                    Owner = "System",
+                    StatusFlag = "New",
+                    StatusDate = DateTime.UtcNow.ToString("yyyyMMdd")
+                }
+            };
+            return new GcsResponse { Content = JsonSerializer.Serialize(defaultTodo), ETag = "0" };
+        }
+      
         // 1. Get object metadata to retrieve the ETag
         var storageObject = await _storageClient.GetObjectAsync(bucketName, fileName);
         string etag = storageObject.ETag;
