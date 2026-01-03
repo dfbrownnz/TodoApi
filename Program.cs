@@ -62,21 +62,8 @@ app.UseRouting();
 app.UseCors("AllowAngularApp"); // Use the policy name defined above
 app.UseAuthorization();
 app.MapControllers();
-app.UseMiddleware<RequestLoggingMiddleware>();
-// app.UseCors(); // Must be placed before other middleware
-// app.Run();
 
-// if (app.Environment.IsDevelopment())
-// {
-//     app.UseOpenApi();
-//     app.UseSwaggerUi(config =>
-//     {
-//         config.DocumentTitle = "TodoAPI";
-//         config.Path = "/swagger";
-//         config.DocumentPath = "/swagger/{documentName}/swagger.json";
-//         config.DocExpansion = "list";
-//     });
-// }
+// app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseOpenApi();
 app.UseSwaggerUi(config =>

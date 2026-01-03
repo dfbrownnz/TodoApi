@@ -29,7 +29,9 @@ public class Todo
     [Description("The group name - a group name the user cannot set ")]
     public required string Group { get; set; }
     [Required]
-    [Description("The Status Name eg Complete, Not Started, etc  ")]
+    [Description("The group name - a group name the user cannot set ")]
+    public required string Owner { get; set; }[Required]
+    [Description("The task owner  ")]
     public required string StatusFlag { get; set; }
     [Required]
     [Description("Date the task was changed in yyyyMMdd format")]
