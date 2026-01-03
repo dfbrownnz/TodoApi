@@ -16,6 +16,39 @@ using TodoProject.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// 1. Define the policy
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngularApp",
+        policy =>
+        { // .AllowAnyOrigin()  // Temporary for debugging 
+        //.WithOrigins("http://localhost:4200", "https://todoui-947367955954.europe-west1.run.app") // Your frontend URL
+            
+            policy.AllowAnyOrigin()
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .WithExposedHeaders("ETag") // This is the critical line
+                  .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
+                  //.AllowCredentials() // Optional, but often needed for authenticated Cloud Run calls                  
+                  .SetIsOriginAllowedToAllowWildcardSubdomains() ;
+                  
+                  
+        });
+});
+
+
+builder.Services.Configure<TodoSettings>(builder.Configuration.GetSection("TodoSettings"));
+builder.Services.AddSingleton(StorageClient.Create());
+builder.Services.AddScoped<TodoService>();
+builder.Services.AddScoped<TodoServiceGcs>();
+builder.Services.AddScoped<ProjectListService>();
+
+builder.Services.Configure<JsonOptions>(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
+builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddOpenApiDocument(config =>
 {
@@ -24,62 +57,13 @@ builder.Services.AddOpenApiDocument(config =>
     config.Version = "v1";
 });
 
-// builder.Services.AddCors(options =>
-// {
-//     options.AddDefaultPolicy(policy =>
-//     {
-//         policy.WithOrigins("http://localhost:4200")
-//               .AllowAnyMethod()
-//               .AllowAnyHeader()
-//               .WithExposedHeaders("ETag") // This is the critical line
-//             .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
-//                .AllowCredentials() // Optional, but often needed for authenticated Cloud Run calls    
-//                .SetIsOriginAllowedToAllowWildcardSubdomains();
-//     });
-// });
-
-// 1. Define the policy
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowAngularApp",
-        policy =>
-        {
-            policy.WithOrigins("https://todoui-947367955954.europe-west1.run.app") // Your frontend URL
-                  .AllowAnyHeader()
-                  .AllowAnyMethod()
-                  .WithExposedHeaders("ETag") // This is the critical line
-                  .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
-                  .AllowCredentials() // Optional, but often needed for authenticated Cloud Run calls                  
-                  .SetIsOriginAllowedToAllowWildcardSubdomains();
-        });
-});
-
-
-builder.Services.Configure<TodoSettings>(builder.Configuration.GetSection("TodoSettings"));
-builder.Services.AddScoped<TodoService>();
-// Don't forget to also register the StorageClient if you use it in the constructor
-builder.Services.AddSingleton(StorageClient.Create());
-// Register your GCS service here
-builder.Services.AddScoped<TodoServiceGcs>();
-// Example: register your service
-builder.Services.AddScoped<ProjectListService>();
-
-
-// Or more simply, tell the serializer to use strings
-builder.Services.Configure<JsonOptions>(options =>
-{
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
-});
-
-builder.Services.AddControllers();
 var app = builder.Build();
 app.UseRouting();
-// Add the logging middleware here
-app.UseMiddleware<RequestLoggingMiddleware>();
-// app.UseCors(); // Must be placed before other middleware
 app.UseCors("AllowAngularApp"); // Use the policy name defined above
 app.UseAuthorization();
 app.MapControllers();
+app.UseMiddleware<RequestLoggingMiddleware>();
+// app.UseCors(); // Must be placed before other middleware
 // app.Run();
 
 // if (app.Environment.IsDevelopment())
