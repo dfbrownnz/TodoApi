@@ -65,6 +65,15 @@ builder.Services.Configure<JsonOptions>(options =>
 var app = builder.Build();
 app.UseCors(); // Must be placed before other middleware
 
+// 2. Enable the middleware (Must be between UseRouting and UseAuthorization)
+app.UseRouting();
+
+app.UseCors("AllowAngularApp"); // Use the policy name defined above
+
+app.UseAuthorization();
+app.MapControllers();
+// app.Run();
+
 // if (app.Environment.IsDevelopment())
 // {
 //     app.UseOpenApi();
