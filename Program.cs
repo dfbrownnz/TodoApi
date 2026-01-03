@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json.Serialization;
 using Google.Cloud.Storage.V1;
 
+ 
+
 // Authorization etc 
 // https://medium.com/@asadikhan/uploading-csv-files-to-google-cloud-storage-using-c-net-9eaa951eabf2
 //  Create Service Account Key
@@ -22,19 +24,19 @@ builder.Services.AddOpenApiDocument(config =>
     config.Version = "v1";
 });
 
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.WithOrigins("http://localhost:4200")
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .WithExposedHeaders("ETag") // This is the critical line
-            .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
-               .AllowCredentials() // Optional, but often needed for authenticated Cloud Run calls    
-               .SetIsOriginAllowedToAllowWildcardSubdomains();
-    });
-});
+// builder.Services.AddCors(options =>
+// {
+//     options.AddDefaultPolicy(policy =>
+//     {
+//         policy.WithOrigins("http://localhost:4200")
+//               .AllowAnyMethod()
+//               .AllowAnyHeader()
+//               .WithExposedHeaders("ETag") // This is the critical line
+//             .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
+//                .AllowCredentials() // Optional, but often needed for authenticated Cloud Run calls    
+//                .SetIsOriginAllowedToAllowWildcardSubdomains();
+//     });
+// });
 
 // 1. Define the policy
 builder.Services.AddCors(options =>
@@ -44,8 +46,9 @@ builder.Services.AddCors(options =>
         {
             policy.WithOrigins("https://todoui-947367955954.europe-west1.run.app") // Your frontend URL
                   .AllowAnyHeader()
-                  .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
                   .AllowAnyMethod()
+                  .WithExposedHeaders("ETag") // This is the critical line
+                  .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
                   .AllowCredentials() // Optional, but often needed for authenticated Cloud Run calls                  
                   .SetIsOriginAllowedToAllowWildcardSubdomains();
         });
@@ -71,10 +74,10 @@ builder.Services.Configure<JsonOptions>(options =>
 builder.Services.AddControllers();
 var app = builder.Build();
 app.UseRouting();
-
-app.UseCors(); // Must be placed before other middleware
+// Add the logging middleware here
+app.UseMiddleware<RequestLoggingMiddleware>();
+// app.UseCors(); // Must be placed before other middleware
 app.UseCors("AllowAngularApp"); // Use the policy name defined above
-
 app.UseAuthorization();
 app.MapControllers();
 // app.Run();
@@ -179,9 +182,9 @@ gcs.MapGet("/file-contents", async (TodoServiceGcs gcsService, HttpContext conte
     }
 });
 
-gcs.MapPut("/file-contents", async (Todo dataObject, TodoServiceGcs gcsService, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
+gcs.MapPost("/file-contents", async (Todo dataObject, TodoServiceGcs gcsService, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
-    Console.WriteLine("|MapPut|gcs|file-contents|", bucketName, ProjectId);
+    Console.WriteLine("|MapPost|gcs|file-contents|", bucketName, ProjectId);
     try
     {
         await gcsService.SaveJsonObjectToGcsAsync(bucketName, ProjectId, dataObject);
@@ -190,7 +193,7 @@ gcs.MapPut("/file-contents", async (Todo dataObject, TodoServiceGcs gcsService, 
     }
     catch (Exception ex)
     {
-        Console.WriteLine("|MapPut|gcs|error| ", bucketName, ProjectId, ex);
+        Console.WriteLine("|MapPost|gcs|error| ", bucketName, ProjectId, ex);
         return Results.BadRequest(new { error = ex.Message });
     }
 
@@ -224,7 +227,7 @@ projectlist.MapGet("/", async (ProjectListService todoService, HttpContext conte
 });
 
 
-projectlist.MapPut("/", async (ProjectList dataObject, ProjectListService todoService,  string? Owner = "NoOwner") =>
+projectlist.MapPost("/", async (ProjectList dataObject, ProjectListService todoService,  string? Owner = "NoOwner") =>
 {
     Console.WriteLine("|MapPut|gcs|file-contents|" );
     try
