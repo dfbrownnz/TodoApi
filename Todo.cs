@@ -30,7 +30,8 @@ public class Todo
     public required string Group { get; set; }
     [Required]
     [Description("The group name - a group name the user cannot set ")]
-    public required string Owner { get; set; }[Required]
+    public required string Owner { get; set; }
+    [Required]
     [Description("The task owner  ")]
     public required string StatusFlag { get; set; }
     [Required]
@@ -42,4 +43,37 @@ public class Todo
     {
         throw new NotImplementedException();
     }
+
+}
+
+public class TodoSummary
+{
+ 
+
+    [Required]
+    [Description("Date the task was changed in yyyyMMdd format")]
+    public required string ProjectId { get; set; }
+
+    [Required]
+    [Description("Date the task was changed in yyyyMMdd format")]
+    public required string statusDate { get; set; }
+
+    [Required]
+    [Description("Date the task was changed in yyyyMMdd format")]
+    public required string Approval { get; set; }
+    [Required]
+    [Description("Date the task was changed in yyyyMMdd format")]
+    public required string Configuration { get; set; }
+
+    [Required]
+    [Description("Date the task was changed in yyyyMMdd format")]
+    public required string Testing { get; set; }
+
+    [Required]
+    [Description("Date the task was changed in yyyyMMdd format")]
+    public required string Production { get; set; }
+    [Required]
+    [Description("Date the task was changed in yyyyMMdd format")]
+    public required string Validation { get; set; }
+
 }

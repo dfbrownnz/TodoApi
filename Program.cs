@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json.Serialization;
 using Google.Cloud.Storage.V1;
 
- 
+
 
 // Authorization etc 
 // https://medium.com/@asadikhan/uploading-csv-files-to-google-cloud-storage-using-c-net-9eaa951eabf2
@@ -22,17 +22,17 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAngularApp",
         policy =>
         { // .AllowAnyOrigin()  // Temporary for debugging 
-        //.WithOrigins("http://localhost:4200", "https://todoui-947367955954.europe-west1.run.app") // Your frontend URL
-            
+          //.WithOrigins("http://localhost:4200", "https://todoui-947367955954.europe-west1.run.app") // Your frontend URL
+
             policy.WithOrigins("http://localhost:4200", "https://todoui-947367955954.europe-west1.run.app") // Your frontend URL//.AllowAnyOrigin()
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .WithExposedHeaders("ETag") // This is the critical line
                   .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // Explicitly include PUT
-                  //.AllowCredentials() // Optional, but often needed for authenticated Cloud Run calls                  
-                  .SetIsOriginAllowedToAllowWildcardSubdomains() ;
-                  
-                  
+                                                                          //.AllowCredentials() // Optional, but often needed for authenticated Cloud Run calls                  
+                  .SetIsOriginAllowedToAllowWildcardSubdomains();
+
+
         });
 });
 
@@ -112,14 +112,14 @@ todoItems.MapPost("/", async (JsonElement todoJson, TodoService todoService) =>
 
 RouteGroupBuilder gcs = app.MapGroup("/gcs");
 
-gcs.MapGet("/", async (TodoServiceGcs gcsService, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
+gcs.MapGet("/", async (TodoServiceGcs todoServiceGcs, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
 
     Console.WriteLine("|MapGet|gcs ", bucketName, ProjectId);
     try
     {
         // Console.WriteLine("|MapGet|gcs|2| ", bucketName, ProjectId);
-        var files = await gcsService.ListGcsFilesAsync(bucketName); // cary-tasks/projects
+        var files = await todoServiceGcs.ListGcsFilesAsync(bucketName); // cary-tasks/projects
         return Results.Ok(files);
     }
     catch (Exception ex)
@@ -131,12 +131,12 @@ gcs.MapGet("/", async (TodoServiceGcs gcsService, string? bucketName = "cary-tas
 .WithName("GetGcsFiles")
 ;
 
-gcs.MapGet("/file-contents", async (TodoServiceGcs gcsService, HttpContext context, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
+gcs.MapGet("/file-contents", async (TodoServiceGcs todoServiceGcs, HttpContext context, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
     Console.WriteLine("|MapGet|gcs|file-contents|", bucketName, ProjectId);
     try
     {
-        var gcsResponse = await gcsService.GetTasksJsonContentAsync(bucketName, ProjectId);
+        var gcsResponse = await todoServiceGcs.GetTasksJsonContentAsync(bucketName, ProjectId);
 
         // 1. Add the ETag to the response headers
         if (!string.IsNullOrEmpty(gcsResponse.ETag))
@@ -153,12 +153,12 @@ gcs.MapGet("/file-contents", async (TodoServiceGcs gcsService, HttpContext conte
     }
 });
 
-gcs.MapPost("/file-contents", async (Todo dataObject, TodoServiceGcs gcsService, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
+gcs.MapPost("/file-contents", async (Todo dataObject, TodoServiceGcs todoServiceGcs, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
     Console.WriteLine("|MapPost|gcs|file-contents|", bucketName, ProjectId);
     try
     {
-        await gcsService.SaveJsonObjectToGcsAsync(bucketName, ProjectId, dataObject);
+        await todoServiceGcs.SaveJsonObjectToGcsAsync(bucketName, ProjectId, dataObject);
         return Results.Ok();
 
     }
@@ -172,14 +172,14 @@ gcs.MapPost("/file-contents", async (Todo dataObject, TodoServiceGcs gcsService,
 
 RouteGroupBuilder projectlist = app.MapGroup("/projectlist");
 
-projectlist.MapGet("/", async (ProjectListService todoService, HttpContext context, string? projectlistName) =>
+projectlist.MapGet("/", async (ProjectListService projectListService, HttpContext context, string? projectlistName) =>
 {
     // Pass the optional ID to your service
     // var todos = await todoService.GetFileJsonContentAsync( "project_list.json" , projectlistName );
     // return Results.Ok(todos);
     try
     {
-        var plResponse = await todoService.GetFileJsonContentAsync("project_list.json", projectlistName);
+        var plResponse = await projectListService.GetFileJsonContentAsync("project_list.json", projectlistName);
 
         // 1. Add the ETag to the response headers
         if (!string.IsNullOrEmpty(plResponse.ETag))
@@ -198,23 +198,40 @@ projectlist.MapGet("/", async (ProjectListService todoService, HttpContext conte
 });
 
 
-projectlist.MapPost("/", async (ProjectList dataObject, ProjectListService todoService,  string? Owner = "NoOwner") =>
+projectlist.MapPost("/", async (ProjectList dataObject, ProjectListService projectListService, string? Owner = "NoOwner") =>
 {
-    Console.WriteLine("|MapPut|gcs|file-contents|" );
+    Console.WriteLine("|MapPut|gcs|file-contents|");
     try
     {
-        await todoService.SaveJsonObjectToGcsAsync( dataObject , "project_list.json" , Owner );
+        await projectListService.SaveJsonObjectToGcsAsync(dataObject, "project_list.json", Owner);
         return Results.Ok();
 
     }
     catch (Exception ex)
     {
-        Console.WriteLine("|MapPut|gcs|error| ",  ex);
+        Console.WriteLine("|MapPut|gcs|error| ", ex);
         return Results.BadRequest(new { error = ex.Message });
     }
 
 });
 
+
+projectlist.MapPost("/all-todos-from-list", async (ProjectList dataObject, ProjectListService projectListService ) =>
+{
+    Console.WriteLine($"|MapPost|projectlist|all-todos-from-list| {dataObject.Name}");
+    try
+    {
+        var plResponse =await projectListService.getTodosFromProjectList(dataObject); //.SaveJsonObjectToGcsAsync( dataObject , "project_list.json"  );
+        //return Results.Ok();
+        return Results.Json(plResponse);
+
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"|MapPost|projectlist|all-todos-from-list|Error|{ex}");
+        return Results.BadRequest(new { error = ex.Message });
+    }
+
+}); 
+
 app.Run();
-
-
