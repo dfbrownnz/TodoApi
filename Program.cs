@@ -60,7 +60,7 @@ builder.Services.AddOpenApiDocument(config =>
 var app = builder.Build();
 app.UseRouting();
 app.UseCors("AllowAngularApp"); // Use the policy name defined above
-app.UseAuthorization();
+// app.UseAuthorization();
 app.MapControllers();
 
 // app.UseMiddleware<RequestLoggingMiddleware>();
