@@ -133,7 +133,7 @@ gcs.MapGet("/", async (TodoServiceGcs todoServiceGcs, string? bucketName = "cary
 
 gcs.MapGet("/file-contents", async (TodoServiceGcs todoServiceGcs, HttpContext context, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
-    Console.WriteLine("|MapGet|gcs|file-contents|", bucketName, ProjectId);
+    Console.WriteLine("|MapGet|gcs|file-contents|getTodos|", bucketName, ProjectId);
     try
     {
         var gcsResponse = await todoServiceGcs.GetTasksJsonContentAsync(bucketName, ProjectId);
@@ -218,7 +218,7 @@ projectlist.MapPost("/", async (ProjectList dataObject, ProjectListService proje
 
 projectlist.MapPost("/all-todos-from-list", async (ProjectList dataObject, ProjectListService projectListService ) =>
 {
-    Console.WriteLine($"|MapPost|projectlist|all-todos-from-list| {dataObject.Name}");
+    // Console.WriteLine($"|MapPost|projectlist|all-todos-from-list| {dataObject.Name}");
     try
     {
         var plResponse =await projectListService.getTodosFromProjectList(dataObject); //.SaveJsonObjectToGcsAsync( dataObject , "project_list.json"  );

@@ -8,7 +8,9 @@ using System.Text;
 using System.Text.Json;
 
 using TodoProject.Models;
-using System.Linq; // Required for LINQ extension methods
+using System.Linq;
+using Newtonsoft.Json;
+using System.Data; // Required for LINQ extension methods
 
 public class ProjectListService
 {
@@ -60,7 +62,7 @@ public class ProjectListService
                 Projectidsum = tmpTodo.ProjectId;
                 // Console.WriteLine($" {tmpTodo.ProjectId} and {tmpTodo.Id} and {tmpTodo.StatusFlag} ");
             }
-            var myTodo = new Todo { ProjectId = Projectidsum, Id = 0, Description = "Summary", Name = "Summary", Group = group, StatusFlag = StatusFlagMax, StatusDate = DateTime.UtcNow.ToString("yyyyMMdd"), Owner = "Summary" };
+            var myTodo = new Todo { ProjectId = Projectidsum, Id = "0", Description = "Summary", Name = "Summary", Group = group, StatusFlag = StatusFlagMax, StatusDate = DateTime.UtcNow.ToString("yyyyMMdd"), Owner = "Summary" };
 
             Console.WriteLine($" {myTodo.ProjectId} and {myTodo.Group} and {myTodo.StatusFlag} ");
             TodoSummary.ProjectId = myTodo.ProjectId;
@@ -138,10 +140,13 @@ public class ProjectListService
 
         return StatusFlagResult;
     }
+
+    // for a given project list return the todos summarized via getTodosFromProjectListSummary
     public async Task<TodoSummary[]> getTodosFromProjectList(ProjectList ProjectList)
     {
 
         var projectListRecord = await getProjectListRecord(ProjectList);
+
         if (projectListRecord == null)
         {
             Console.WriteLine($" ProjectList|getProjectListRecord|record not found {fileNameProjectList} in {BucketName}");
@@ -152,6 +157,10 @@ public class ProjectListService
 
         // Split the 'Values' string by comma to get individual project IDs/filenames
         var projectFiles = projectListRecord.Values.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        // Console.WriteLine($" --------- ");
+        // Console.WriteLine($"getTodosFromProjectList|ProjectList|get {projectListRecord.Values} from ProjectList={ProjectList.Name} Owner={ProjectList.Owner}");
+
+
 
         foreach (var projectFile in projectFiles)
         {
@@ -161,12 +170,12 @@ public class ProjectListService
             try
             {
                 var gcsResponse = await GetFileJsonContentAsync(trimmedProjectFile, projectListRecord.Name);
-                var todosForProject = JsonSerializer.Deserialize<List<Todo>>(gcsResponse.Content);
+                var todosForProject = System.Text.Json.JsonSerializer.Deserialize<List<Todo>>(gcsResponse.Content);
                 if (todosForProject != null)
                 {
                     //allTodos.AddRange(todosForProject);
                     //allTodos.AddRange( getTodosFromProjectListSummary(todosForProject) );
-                    allTodos.AddRange( getTodosFromProjectListSummary(todosForProject) );
+                    allTodos.AddRange(getTodosFromProjectListSummary(todosForProject));
                     Console.WriteLine($"|ProjectList|getProjectIdsfromProjectList|2| {todosForProject.Count()} ");
                 }
             }
@@ -201,7 +210,7 @@ public class ProjectListService
             using (var reader = new StreamReader(memoryStream))
             {
                 string jsonContent = await reader.ReadToEndAsync();
-                var allProjectLists = JsonSerializer.Deserialize<List<ProjectList>>(jsonContent);
+                var allProjectLists = System.Text.Json.JsonSerializer.Deserialize<List<ProjectList>>(jsonContent);
 
                 if (allProjectLists == null)
                 {
@@ -250,10 +259,11 @@ public class ProjectListService
         var fileNameProjectTasks = $"todos.{newProjectList.Values}.json";
         if (await FileExistsAsync(BucketName, fileNameProjectTasks) == false)
         {
-            await _storageClient.CopyObjectAsync(BucketName, "todos.template.json", BucketName, fileNameProjectTasks);
-            Console.WriteLine($"|SaveJsonObjectToGcsAsyncNewProject:2|File {fileNameProjectTasks} of todos copied from template");
+            // await _storageClient.CopyObjectAsync(BucketName, "todos.template.json", BucketName, fileNameProjectTasks);
+            Console.WriteLine($"|SaveJsonObjectToGcsAsyncNewProject:2| file DOES NOT exists for {fileNameProjectTasks} {newProjectList.Name} owner: {owner} .");
+            await SaveNewTaskFileforNewProjectId(fileNameProjectTasks , newProjectList.Values );
 
-            return;
+
         }
         else
         {
@@ -263,6 +273,60 @@ public class ProjectListService
         }
     }
 
+
+    public async Task SaveNewTaskFileforNewProjectId(string fileNameProjectTasks , string ProjectId)
+    {
+
+        Console.WriteLine($"|SaveNewTaskFileforNewProjectId:2| copy tempate to {fileNameProjectTasks}");
+        try
+        {
+
+            // 1. Download the template
+            var memoryStream = new MemoryStream();
+            await _storageClient.DownloadObjectAsync(BucketName, "todos.template.json", memoryStream);
+
+            // 2. Read and Modify
+            memoryStream.Position = 0;
+            using (var reader = new StreamReader(memoryStream))
+            {
+                string content = await reader.ReadToEndAsync();
+
+                // Deserializing to a dynamic object or your specific Todo list model
+                // var data = JsonConvert.DeserializeObject<dynamic>(content);
+                var TodoList = System.Text.Json.JsonSerializer.Deserialize<List<Todo>>(content) ?? new();
+                // oldProjectList = System.Text.Json.JsonSerializer.Deserialize<List<ProjectList>>(existingBytes) ?? new();
+
+                // Update the project id for each todo in the array
+                foreach (var todo in TodoList)
+                {
+                    todo.ProjectId = ProjectId;
+
+                }
+
+                // Prepare modified content for upload
+                string updatedContent = JsonConvert.SerializeObject(TodoList, Formatting.Indented);
+                byte[] byteArray = Encoding.UTF8.GetBytes(updatedContent);
+
+                // 3. Save as the new file: fileNameProjectTasks
+                using (var uploadStream = new MemoryStream(byteArray))
+                {
+                    await _storageClient.UploadObjectAsync(
+                        BucketName,
+                        fileNameProjectTasks,
+                        "application/json",
+                        uploadStream
+                    );
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // General errors (network, null references, etc.)
+            Console.WriteLine($"General Error in SaveNewTaskFileforNewProjectId: {ex.Message}");
+
+        }
+
+    }
 
     // project-name 
     public async Task SaveJsonObjectToGcsAsync(ProjectList newProjectList, string fileName, string owner)
@@ -277,7 +341,7 @@ public class ProjectListService
             {
                 await _storageClient.DownloadObjectAsync(BucketName, fileName, memoryStream);
                 var existingBytes = memoryStream.ToArray();
-                oldProjectList = JsonSerializer.Deserialize<List<ProjectList>>(existingBytes) ?? new();
+                oldProjectList = System.Text.Json.JsonSerializer.Deserialize<List<ProjectList>>(existingBytes) ?? new();
             }
         }
         catch (Google.GoogleApiException ex) when (ex.HttpStatusCode == System.Net.HttpStatusCode.NotFound)
@@ -325,7 +389,7 @@ public class ProjectListService
 
         // 3. Save the merged object back to GCS
         var options = new JsonSerializerOptions { WriteIndented = true };
-        byte[] finalBytes = JsonSerializer.SerializeToUtf8Bytes(oldProjectList, options);
+        byte[] finalBytes = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(oldProjectList, options);
 
         using (var uploadStream = new MemoryStream(finalBytes))
         {

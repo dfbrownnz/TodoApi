@@ -92,6 +92,10 @@ public async Task<bool> FileExistsAsync(string bucketName, string fileName)
     /// <returns>A string containing the JSON data.</returns>
     public async Task<GcsResponse> GetTasksJsonContentAsync(string bucketName, string fileName)
     { 
+        Console.WriteLine($"-----------------");
+        Console.WriteLine($"|GetTasksJsonContentAsync| fileName={fileName}|");
+        Console.WriteLine($"-----------------");
+
         if(await FileExistsAsync(bucketName, fileName) == false    )
         {
             // return new GcsResponse { Content = JsonSerializer.Serialize(new List<Todo>()), ETag = "0" };
@@ -100,7 +104,7 @@ public async Task<bool> FileExistsAsync(string bucketName, string fileName)
                 new Todo
                 {
                     ProjectId = fileName,
-                    Id = 1,
+                    Id = "1",
                     Description = $"Cant find the file for file name {fileName} in the bucket {bucketName}. Assign a Project id before coming here",
                     Name = "Initial Task",
                     Group = "Configuration",
@@ -178,7 +182,9 @@ public async Task<bool> FileExistsAsync(string bucketName, string fileName)
             // If the file doesn't exist yet, start with an empty dictionary
             oldTodo = new();
         }
+        // Console.WriteLine( $"|SaveJsonObjectToGcsAsync| index: .. mewTodo {newTodo.Id}" );
         int index = oldTodo.FindIndex(t => t.Id == newTodo.Id);
+        // Console.WriteLine( $"|SaveJsonObjectToGcsAsync| index: {index} mewTodo {newTodo.Id}" );
 
         if (index != -1)
         {
@@ -186,7 +192,11 @@ public async Task<bool> FileExistsAsync(string bucketName, string fileName)
         }
         else
         {
+            //newTodo.Id = Guid.NewGuid().ToString();
+            newTodo.Id = (oldTodo.Count + 1).ToString();
             oldTodo.Add(newTodo);
+            Console.WriteLine( $"|SaveJsonObjectToGcsAsync| index: .. mewTodo {newTodo.Id} created." );
+
         }
 
 

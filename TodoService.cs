@@ -96,7 +96,7 @@ public class TodoService(IOptions<TodoSettings> settings)
         if (string.IsNullOrWhiteSpace(todo.ProjectId))
             return new TaskError { Name = "Validation Error", Description = "ProjectId is required." };
 
-        if (todo.Id <= 0)
+        if ( todo.Id == null || todo.Id == "")
             return new TaskError { Name = "Validation Error", Description = "A valid ID is required." };
 
         // if (!Enum.IsDefined(typeof(TodoGroup), todo.Group))

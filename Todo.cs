@@ -18,7 +18,7 @@ public class Todo
     public required string ProjectId { get; set; }
     [Required]
     [Description("The unique id of the task - leave blank to create a new task. ")]
-    public required int Id { get; set; }
+    public required string Id { get; set; }
     [Required]
     [Description("The full Details for the task ")]
     public required string Description { get; set; }
