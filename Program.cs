@@ -115,7 +115,7 @@ RouteGroupBuilder gcs = app.MapGroup("/gcs");
 gcs.MapGet("/", async (TodoServiceGcs todoServiceGcs, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
 
-    Console.WriteLine("|MapGet|gcs ", bucketName, ProjectId);
+    // Console.WriteLine("|MapGet|gcs ", bucketName, ProjectId);
     try
     {
         // Console.WriteLine("|MapGet|gcs|2| ", bucketName, ProjectId);

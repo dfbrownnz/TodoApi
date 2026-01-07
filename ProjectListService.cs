@@ -64,7 +64,7 @@ public class ProjectListService
             }
             var myTodo = new Todo { ProjectId = Projectidsum, Id = "0", Description = "Summary", Name = "Summary", Group = group, StatusFlag = StatusFlagMax, StatusDate = DateTime.UtcNow.ToString("yyyyMMdd"), Owner = "Summary" };
 
-            Console.WriteLine($" {myTodo.ProjectId} and {myTodo.Group} and {myTodo.StatusFlag} ");
+            // Console.WriteLine($" {myTodo.ProjectId} and {myTodo.Group} and {myTodo.StatusFlag} ");
             TodoSummary.ProjectId = myTodo.ProjectId;
             TodoSummary.statusDate = maxDate;
             if (myTodo.Group == "Approval")
@@ -95,7 +95,7 @@ public class ProjectListService
             // GetMaxStatusFlag
             SummaryTodos.Add(myTodo);
         }
-        Console.WriteLine($" {TodoSummary.ProjectId}  and {TodoSummary.Approval} -> {TodoSummary} ");
+        // Console.WriteLine($" {TodoSummary.ProjectId}  and {TodoSummary.Approval} -> {TodoSummary} ");
         // throw new NotImplementedException();
         //return SummaryTodos;
         return [TodoSummary];
@@ -371,12 +371,12 @@ public class ProjectListService
 
         if (index != -1)
         {
-            Console.WriteLine($"|SaveJsonObjectToGcsAsync| owner: {newProjectList.Owner} found so update {newProjectList.Name} ");
+            Console.WriteLine($"|SaveJsonObjectToGcsAsync| owner: {newProjectList.Owner} found so UDATE {newProjectList.Name} ");
             oldProjectList[index] = newProjectList;
         }
         else
         {
-            Console.WriteLine($"|SaveJsonObjectToGcsAsync| owner: {newProjectList.Owner} not found so add {newProjectList.Name} ");
+            Console.WriteLine($"|SaveJsonObjectToGcsAsync| owner: {newProjectList.Owner} not found so ADD {newProjectList.Name} ");
 
             // project-name is new then -> copying the todos template into a new file for this project
             if (newProjectList.Owner == "project-name")

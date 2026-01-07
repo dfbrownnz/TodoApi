@@ -92,9 +92,8 @@ public async Task<bool> FileExistsAsync(string bucketName, string fileName)
     /// <returns>A string containing the JSON data.</returns>
     public async Task<GcsResponse> GetTasksJsonContentAsync(string bucketName, string fileName)
     { 
-        Console.WriteLine($"-----------------");
         Console.WriteLine($"|GetTasksJsonContentAsync| fileName={fileName}|");
-        Console.WriteLine($"-----------------");
+        // Console.WriteLine($"-----------------");
 
         if(await FileExistsAsync(bucketName, fileName) == false    )
         {
