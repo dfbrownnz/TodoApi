@@ -23,7 +23,7 @@ builder.Services.AddCors(options =>
         { // .AllowAnyOrigin()  // Temporary for debugging 
           //.WithOrigins("http://localhost:4200", "https://todoui-947367955954.europe-west1.run.app") // Your frontend URL
 
-            policy.WithOrigins("http://localhost:4200", "https://todoui-947367955954.europe-west1.run.app") // Your frontend URL//.AllowAnyOrigin()
+            policy.WithOrigins("http://localhost:4200", "https://todoui-947367955954.europe-west1.run.app" , "https://tasks-947367955954.europe-west1.run.app") // Your frontend URL//.AllowAnyOrigin()
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .WithExposedHeaders("ETag") // This is the critical line
