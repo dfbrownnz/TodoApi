@@ -6,7 +6,6 @@ using System.Text.Json.Serialization;
 using Google.Cloud.Storage.V1;
 
 
-
 // Authorization etc 
 // https://medium.com/@asadikhan/uploading-csv-files-to-google-cloud-storage-using-c-net-9eaa951eabf2
 //  Create Service Account Key
@@ -112,7 +111,7 @@ todoItems.MapPost("/", async (JsonElement todoJson, TodoService todoService) =>
 
 RouteGroupBuilder gcs = app.MapGroup("/gcs");
 
-gcs.MapGet("/", async (TodoServiceGcs todoServiceGcs, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
+gcs.MapGet("/", async (TodoServiceGcs todoServiceGcs, HttpContext context, string? bucketName = "cary-tasks", string? ProjectId = "todos.2.json") =>
 {
 
     // Console.WriteLine("|MapGet|gcs ", bucketName, ProjectId);
@@ -120,6 +119,7 @@ gcs.MapGet("/", async (TodoServiceGcs todoServiceGcs, string? bucketName = "cary
     {
         // Console.WriteLine("|MapGet|gcs|2| ", bucketName, ProjectId);
         var files = await todoServiceGcs.ListGcsFilesAsync(bucketName); // cary-tasks/projects
+      
         return Results.Ok(files);
     }
     catch (Exception ex)
@@ -137,6 +137,14 @@ gcs.MapGet("/file-contents", async (TodoServiceGcs todoServiceGcs, HttpContext c
     try
     {
         var gcsResponse = await todoServiceGcs.GetTasksJsonContentAsync(bucketName, ProjectId);
+         
+
+        // Console.WriteLine($"|MapGet|projectlist|plResponse.ETag={plResponse.ETag} ") ;
+
+        if( context.Request.Headers.IfNoneMatch == gcsResponse.ETag)
+        {
+            return Results.StatusCode(StatusCodes.Status304NotModified);
+        }
 
         // 1. Add the ETag to the response headers
         if (!string.IsNullOrEmpty(gcsResponse.ETag))
@@ -181,7 +189,12 @@ projectlist.MapGet("/", async (ProjectListService projectListService, HttpContex
     {
         var plResponse = await projectListService.GetFileJsonContentAsync("project_list.json", projectlistName);
 
-        // 1. Add the ETag to the response headers
+        // Console.WriteLine($"|MapGet|projectlist|plResponse.ETag={plResponse.ETag} ") ;
+
+        if( context.Request.Headers.IfNoneMatch == plResponse.ETag)
+        {
+            return Results.StatusCode(StatusCodes.Status304NotModified);
+        }
         if (!string.IsNullOrEmpty(plResponse.ETag))
         {
             context.Response.Headers.ETag = plResponse.ETag;
