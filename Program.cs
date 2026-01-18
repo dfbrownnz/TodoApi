@@ -250,7 +250,9 @@ projectlist.MapPost("/all-todos-from-list", async (ProjectList dataObject, Proje
         }
         else
         {
+            // var plResponseFiltered = plResponse.Where(t => t.Owner == taskOwner && (t.StatusFlag == "Expected" || t.StatusFlag == "Issue" || t.StatusFlag == "In Progress")).ToList();
             var plResponseFiltered = plResponse.Where(t => t.Owner == taskOwner && (t.StatusFlag == "Expected" || t.StatusFlag == "Issue" || t.StatusFlag == "In Progress")).ToList();
+            //var plResponseFiltered2 = plResponseFiltered.Where(t => (t.StatusFlag == "Expected" || t.StatusFlag == "Issue" || t.StatusFlag == "In Progress") ).ToList();
             //var plResponseFilterd = plResponse.Where(t => t.Owner == taskOwner).ToList();
 
             return Results.Json(plResponseFiltered);
