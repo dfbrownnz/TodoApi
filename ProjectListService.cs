@@ -19,7 +19,7 @@ public class ProjectListService
     private const string BucketName = "cary-tasks";
     private const string Prefix = "projects/";
     private const string fileNameProjectList = "project_list.json";
-    private const string logMessage ="api.ProjectListService.cs|" ;
+    private const string logMessage = "api.ProjectListService.cs|";
 
 
     //private readonly TodoSettings _settings = settings.Value;
@@ -31,10 +31,11 @@ public class ProjectListService
         _storageClient = storage;
         if (storage == null)
         {
-            Console.WriteLine( logMessage + "|ProjectListService|StorageClient could not be initialized. Check your credentials");
+            Console.WriteLine(logMessage + "|ProjectListService|StorageClient could not be initialized. Check your credentials");
             throw new Exception("StorageClient could not be initialized. Check your credentials.");
         }
     }
+
 
 
 
@@ -45,7 +46,7 @@ public class ProjectListService
         var statusFlag = new[] { "Complete", "Not Started", "In Progress", "Issue", "Expected" };
         var todosForProjectSorted = todosForProject.OrderBy(t => t.StatusFlag).OrderBy(t => t.StatusDate).ToList();
         var Projectidsum = ""; // todosInGroup[0].ProjectId ;
-        var TodoSummary = new TodoSummary { ProjectId = "", statusDate = "", Approval = "", Configuration = "", Testing = "", Production = "", Validation = "" };
+        var TodoSummary = new TodoSummary { ProjectId = "", Owner = "", statusDate = "", Approval = "", Configuration = "", Testing = "", Production = "", Validation = "" };
 
         // Logic to find the maximum value
         var maxDate = todosForProjectSorted
@@ -143,14 +144,14 @@ public class ProjectListService
     }
 
     // for a given project list return the todos summarized via getTodosFromProjectListSummary
-    public async Task<TodoSummary[]> getTodosFromProjectList(ProjectList ProjectList)
+    public async Task<TodoSummary[]> getTodosFromProjectListReturnSummary(ProjectList ProjectList, string SummaryType = "project-owner")
     {
 
         var projectListRecord = await getProjectListRecord(ProjectList);
 
         if (projectListRecord == null)
         {
-            Console.WriteLine( logMessage + $" ProjectList|getProjectListRecord|record not found {fileNameProjectList} in {BucketName}");
+            Console.WriteLine(logMessage + $" ProjectList|getProjectListRecord|record not found {fileNameProjectList} in {BucketName}");
             return new TodoSummary[0]; // record does not exist
         }
 
@@ -161,12 +162,10 @@ public class ProjectListService
         // Console.WriteLine($" --------- ");
         // Console.WriteLine($"getTodosFromProjectList|ProjectList|get {projectListRecord.Values} from ProjectList={ProjectList.Name} Owner={ProjectList.Owner}");
 
-
-
         foreach (var projectFile in projectFiles)
         {
             var trimmedProjectFile = "todos." + projectFile.Trim() + ".json";
-            Console.WriteLine( logMessage + $"|ProjectList|getProjectIdsfromProjectList|1| {trimmedProjectFile} ");
+            Console.WriteLine(logMessage + $"|ProjectList|getProjectIdsfromProjectList|1| {trimmedProjectFile} ");
 
             try
             {
@@ -175,16 +174,72 @@ public class ProjectListService
                 if (todosForProject != null)
                 {
                     //allTodos.AddRange(todosForProject);
-                    //allTodos.AddRange( getTodosFromProjectListSummary(todosForProject) );
+                    //allTodos.AddRange( getTodosFromTaskOwnerSummary(todosForProject) );
+                    // if (SummaryType == "project-owner")
+                    // {
                     allTodos.AddRange(getTodosFromProjectListSummary(todosForProject));
-                    Console.WriteLine( logMessage + $"|ProjectList|getProjectIdsfromProjectList|2| {todosForProject.Count()} ");
+                    // }
+
+
+                    Console.WriteLine(logMessage + $"|ProjectList|getTodosFromProjectListReturnSummary|2| {todosForProject.Count()} ");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine( logMessage + $"|ProjectList|getProjectIdsfromProjectList|Error reading file {trimmedProjectFile}: {ex.Message}");
+                Console.WriteLine(logMessage + $"|ProjectList|getTodosFromProjectListReturnSummary|Error reading file {trimmedProjectFile}: {ex.Message}");
             }
         }
+
+        return allTodos.ToArray();
+    }
+
+
+    // for a given project list return the todos summarized via getTodosFromProjectListSummary
+    public async Task<Todo[]> getTodosFromProjectList(ProjectList ProjectList, string SummaryType = "project-owner")
+    {
+
+        var projectListRecord = await getProjectListRecord(ProjectList);
+
+        if (projectListRecord == null)
+        {
+            Console.WriteLine(logMessage + $" ProjectList|getProjectListRecord|record not found {fileNameProjectList} in {BucketName}");
+            return new Todo[0]; // record does not exist
+        }
+
+        var allTodos = new List<Todo>();
+
+        // Split the 'Values' string by comma to get individual project IDs/filenames
+        var projectFiles = projectListRecord.Values.Split(',', StringSplitOptions.RemoveEmptyEntries);
+        // Console.WriteLine($" --------- ");
+        // Console.WriteLine($"getTodosFromProjectList|ProjectList|get {projectListRecord.Values} from ProjectList={ProjectList.Name} Owner={ProjectList.Owner}");
+
+        foreach (var projectFile in projectFiles)
+        {
+            var trimmedProjectFile = "todos." + projectFile.Trim() + ".json";
+            // Console.WriteLine(logMessage + $"|ProjectList|getProjectIdsfromProjectList|1| {trimmedProjectFile} ");
+
+            try
+            {
+                var gcsResponse = await GetFileJsonContentAsync(trimmedProjectFile, projectListRecord.Name);
+                var todosForProject = System.Text.Json.JsonSerializer.Deserialize<List<Todo>>(gcsResponse.Content);
+                if (todosForProject != null)
+                {
+                    //allTodos.AddRange(todosForProject);
+                    //allTodos.AddRange( getTodosFromTaskOwnerSummary(todosForProject) );
+                    allTodos.AddRange(todosForProject);
+
+
+
+                    // Console.WriteLine(logMessage + $"|ProjectList|getProjectIdsfromProjectList|2| {todosForProject.Count()} ");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(logMessage + $"|ProjectList|getProjectIdsfromProjectList|Error reading file {trimmedProjectFile}: {ex.Message}");
+            }
+        }
+
+        // Console.WriteLine(logMessage + $"|getTodosFromProjectList|allTodos|3| {allTodos.Count()} ");
 
         return allTodos.ToArray();
     }
@@ -199,7 +254,7 @@ public class ProjectListService
 
         if (await FileExistsAsync(BucketName, fileNameProjectList) == false)
         {
-            Console.WriteLine( logMessage + $" ProjectList|getProjectListRecord|file not found {fileNameProjectList} in {BucketName}");
+            Console.WriteLine(logMessage + $" ProjectList|getProjectListRecord|file not found {fileNameProjectList} in {BucketName}");
             return null; // File does not exist
         }
         //  Console.WriteLine($" ProjectList|getProjectListRecord|file  found {fileNameProjectList} in {BucketName}");
@@ -215,7 +270,7 @@ public class ProjectListService
 
                 if (allProjectLists == null)
                 {
-                    Console.WriteLine( logMessage + $" ProjectList|getProjectListRecord|file no content {fileNameProjectList} in {BucketName}");
+                    Console.WriteLine(logMessage + $" ProjectList|getProjectListRecord|file no content {fileNameProjectList} in {BucketName}");
                     return null; // No project lists found or deserialization failed
                 }
 
@@ -261,24 +316,24 @@ public class ProjectListService
         if (await FileExistsAsync(BucketName, fileNameProjectTasks) == false)
         {
             // await _storageClient.CopyObjectAsync(BucketName, "todos.template.json", BucketName, fileNameProjectTasks);
-            Console.WriteLine( logMessage + $"|SaveJsonObjectToGcsAsyncNewProject:2| file DOES NOT exists for {fileNameProjectTasks} {newProjectList.Name} owner: {owner} .");
-            await SaveNewTaskFileforNewProjectId(fileNameProjectTasks , newProjectList.Values );
+            Console.WriteLine(logMessage + $"|SaveJsonObjectToGcsAsyncNewProject:2| file DOES NOT exists for {fileNameProjectTasks} {newProjectList.Name} owner: {owner} .");
+            await SaveNewTaskFileforNewProjectId(fileNameProjectTasks, newProjectList.Values);
 
 
         }
         else
         {
 
-            Console.WriteLine( logMessage + $"|SaveJsonObjectToGcsAsyncNewProject:3| file exists for {fileNameProjectTasks} {newProjectList.Name} owner: {owner} so it wasn't copied from a template");
+            Console.WriteLine(logMessage + $"|SaveJsonObjectToGcsAsyncNewProject:3| file exists for {fileNameProjectTasks} {newProjectList.Name} owner: {owner} so it wasn't copied from a template");
             return;
         }
     }
 
 
-    public async Task SaveNewTaskFileforNewProjectId(string fileNameProjectTasks , string ProjectId)
+    public async Task SaveNewTaskFileforNewProjectId(string fileNameProjectTasks, string ProjectId)
     {
 
-        Console.WriteLine( logMessage + $"|SaveNewTaskFileforNewProjectId:2| copy tempate to {fileNameProjectTasks}");
+        Console.WriteLine(logMessage + $"|SaveNewTaskFileforNewProjectId:2| copy tempate to {fileNameProjectTasks}");
         try
         {
 
@@ -323,7 +378,7 @@ public class ProjectListService
         catch (Exception ex)
         {
             // General errors (network, null references, etc.)
-            Console.WriteLine( logMessage + $"General Error in SaveNewTaskFileforNewProjectId: {ex.Message}");
+            Console.WriteLine(logMessage + $"General Error in SaveNewTaskFileforNewProjectId: {ex.Message}");
 
         }
 
@@ -332,7 +387,7 @@ public class ProjectListService
     // project-name 
     public async Task SaveJsonObjectToGcsAsync(ProjectList newProjectList, string fileName, string owner)
     {
-        Console.WriteLine( logMessage + $"|SaveJsonObjectToGcsAsync| fileName: {fileName} owner: {newProjectList.Owner} newProjectList: {newProjectList.Name}");
+        Console.WriteLine(logMessage + $"|SaveJsonObjectToGcsAsync| fileName: {fileName} owner: {newProjectList.Owner} newProjectList: {newProjectList.Name}");
 
         List<ProjectList> oldProjectList = new();
 
@@ -372,12 +427,12 @@ public class ProjectListService
 
         if (index != -1)
         {
-            Console.WriteLine( logMessage + $"|SaveJsonObjectToGcsAsync| owner: {newProjectList.Owner} found so UDATE {newProjectList.Name} ");
+            Console.WriteLine(logMessage + $"|SaveJsonObjectToGcsAsync| owner: {newProjectList.Owner} found so UDATE {newProjectList.Name} ");
             oldProjectList[index] = newProjectList;
         }
         else
         {
-            Console.WriteLine( logMessage + $"|SaveJsonObjectToGcsAsync| owner: {newProjectList.Owner} not found so ADD {newProjectList.Name} ");
+            Console.WriteLine(logMessage + $"|SaveJsonObjectToGcsAsync| owner: {newProjectList.Owner} not found so ADD {newProjectList.Name} ");
 
             // project-name is new then -> copying the todos template into a new file for this project
             if (newProjectList.Owner == "project-name")

@@ -23,7 +23,7 @@ builder.Services.AddCors(options =>
         { // .AllowAnyOrigin()  // Temporary for debugging 
           //.WithOrigins("http://localhost:4200", "https://todoui-947367955954.europe-west1.run.app") // Your frontend URL
 
-            policy.WithOrigins("http://localhost:4200", "https://todoui-947367955954.europe-west1.run.app" , "https://tasks-947367955954.europe-west1.run.app") // Your frontend URL//.AllowAnyOrigin()
+            policy.WithOrigins("http://localhost:4200", "https://todoui-947367955954.europe-west1.run.app", "https://tasks-947367955954.europe-west1.run.app") // Your frontend URL//.AllowAnyOrigin()
                   .AllowAnyHeader()
                   .AllowAnyMethod()
                   .WithExposedHeaders("ETag") // This is the critical line
@@ -119,7 +119,7 @@ gcs.MapGet("/", async (TodoServiceGcs todoServiceGcs, HttpContext context, strin
     {
         // Console.WriteLine("|MapGet|gcs|2| ", bucketName, ProjectId);
         var files = await todoServiceGcs.ListGcsFilesAsync(bucketName); // cary-tasks/projects
-      
+
         return Results.Ok(files);
     }
     catch (Exception ex)
@@ -137,11 +137,11 @@ gcs.MapGet("/file-contents", async (TodoServiceGcs todoServiceGcs, HttpContext c
     try
     {
         var gcsResponse = await todoServiceGcs.GetTasksJsonContentAsync(bucketName, ProjectId);
-         
+
 
         // Console.WriteLine($"|MapGet|projectlist|plResponse.ETag={plResponse.ETag} ") ;
 
-        if( context.Request.Headers.IfNoneMatch == gcsResponse.ETag)
+        if (context.Request.Headers.IfNoneMatch == gcsResponse.ETag)
         {
             return Results.StatusCode(StatusCodes.Status304NotModified);
         }
@@ -191,7 +191,7 @@ projectlist.MapGet("/", async (ProjectListService projectListService, HttpContex
 
         // Console.WriteLine($"|MapGet|projectlist|plResponse.ETag={plResponse.ETag} ") ;
 
-        if( context.Request.Headers.IfNoneMatch == plResponse.ETag)
+        if (context.Request.Headers.IfNoneMatch == plResponse.ETag)
         {
             return Results.StatusCode(StatusCodes.Status304NotModified);
         }
@@ -229,12 +229,49 @@ projectlist.MapPost("/", async (ProjectList dataObject, ProjectListService proje
 });
 
 
-projectlist.MapPost("/all-todos-from-list", async (ProjectList dataObject, ProjectListService projectListService ) =>
+projectlist.MapPost("/all-todos-from-list", async (ProjectList dataObject, ProjectListService projectListService, HttpContext context) =>
+{
+
+    var taskOwner = context.Request.Query["taskOwner"].ToString();
+
+
+    Console.WriteLine($"|MapPost|projectlist|all-todos-from-list| {dataObject.Name} and taskOwner={taskOwner}|");
+
+    try
+    {
+        //var plResponse =await projectListService.getTodosFromProjectList(dataObject , "project-owner" ); //.SaveJsonObjectToGcsAsync( dataObject , "project_list.json"  );
+        var plResponse = await projectListService.getTodosFromProjectList(dataObject, "task-owner"); //.SaveJsonObjectToGcsAsync( dataObject , "project_list.json"  );
+                                                                                                     //return Results.Ok();
+        if (string.IsNullOrEmpty(taskOwner))
+        {
+            // Handle case where no owner is provided
+            // Console.WriteLine($"|MapPost|projectlist|all-todos-from-list|no owner provided{dataObject.Name}");
+            return Results.Json(plResponse);
+        }
+        else
+        {
+            var plResponseFilterd = plResponse.Where(t => t.Owner == taskOwner).ToList();
+
+            return Results.Json(plResponseFilterd);
+
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"|MapPost|projectlist|all-todos-from-list|Error|{ex}");
+        return Results.BadRequest(new { error = ex.Message });
+    }
+
+});
+
+
+projectlist.MapPost("/all-todos-summary-from-list", async (ProjectList dataObject, ProjectListService projectListService) =>
 {
     // Console.WriteLine($"|MapPost|projectlist|all-todos-from-list| {dataObject.Name}");
     try
     {
-        var plResponse =await projectListService.getTodosFromProjectList(dataObject); //.SaveJsonObjectToGcsAsync( dataObject , "project_list.json"  );
+        //var plResponse =await projectListService.getTodosFromProjectList(dataObject , "project-owner" ); //.SaveJsonObjectToGcsAsync( dataObject , "project_list.json"  );
+        var plResponse = await projectListService.getTodosFromProjectListReturnSummary(dataObject, "task-owner"); //.SaveJsonObjectToGcsAsync( dataObject , "project_list.json"  );
         //return Results.Ok();
         return Results.Json(plResponse);
 
@@ -245,6 +282,6 @@ projectlist.MapPost("/all-todos-from-list", async (ProjectList dataObject, Proje
         return Results.BadRequest(new { error = ex.Message });
     }
 
-}); 
+});
 
 app.Run();

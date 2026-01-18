@@ -53,6 +53,10 @@ public class TodoSummary
     [Required]
     [Description("Date the task was changed in yyyyMMdd format")]
     public required string ProjectId { get; set; }
+    
+    [Required]
+    [Description("Date the task was changed in yyyyMMdd format")]
+    public required string Owner { get; set; }
 
     [Required]
     [Description("Date the task was changed in yyyyMMdd format")]
@@ -77,3 +81,4 @@ public class TodoSummary
     public required string Validation { get; set; }
 
 }
+
